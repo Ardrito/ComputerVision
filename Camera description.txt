@@ -1,0 +1,52 @@
+ov9732 Camera module    
+    Hardware Parameters
+
+    Sensor: 1/4" format with 3.0µm×3.0µm pixel size
+
+    Viewing area: 5.7mm×4.28mm, supports resolutions up to 1280×720.
+
+    Lens: Fixed focus, 1/4" focal length, F2.0 aperture and 100° diagonal field of view.
+
+    Output & Compatibility
+
+    Formats: MJPEG/YUV2 (YUYV) encoding, with frame rates of up to 30 frames per second at a resolution of 720p.
+
+    Interface: USB 2.0 high speed, plug and play compatibility for Windows/Linux/Android systems.
+
+    Features
+
+    Low light capability: Minimum illuminance of 0.5 lux, enabled by highly sensitive pixel design.
+
+    Adjustable parameters: supports brightness, contrast, saturation, white balance and exposure control.
+
+    Shutter Type: Electronic Rolling Shutter or Frame Exposure Modes
+
+    Industrial Design
+
+    Mounting: SMT (Surface Mount Technology) for compact integration.
+
+    Durability: Works in environments from -40°C to +85°C, suitable for long-term use.
+
+    Package includes:
+
+    3 x 100 degree camera module OV9732
+
+    3 x 2 m USB cable. 
+
+
+
+
+     Package Dimensions L x W x H 	‎15.3 x 10.2 x 5.2 centimetres
+        Package Weight 	‎0.26 Kilograms
+        Brand 	‎YHX-OU
+        Colour 	‎black
+        Included components 	‎3 x 100 degree camera module / 3 x 2 m USB cable
+        ISO Range 	‎100-6400
+        Max Focal Length 	‎6.35 Millimetres
+        Water Resistance Level 	‎Water Repellent
+        Focus type 	‎Fixed Focus
+        Maximum shutter speed 	‎1/30
+        Aperture Modes 	‎fixed
+        Effective still resolution 	‎1280 Pixels
+        Guaranteed software updates until 	‎unknown 
+        ASIN 	B0DYJW1S1N 
