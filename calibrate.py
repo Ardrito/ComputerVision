@@ -3,7 +3,7 @@ import numpy as np
 import glob
 
 def getCorners(chessboardSize: tuple[int,int] = (10,7), frameSize: tuple[int,int]=(1280,720), 
-               path: str = "images/", fileType: str = ".jpeg", showImages: bool = False):
+               path: str = "images/", fileType: str = ".jpeg", showImages: bool = False, square_size:float =0.018):
     '''
     Find corners of squares in images of checkerboards from a folder of images
     
@@ -18,8 +18,11 @@ def getCorners(chessboardSize: tuple[int,int] = (10,7), frameSize: tuple[int,int
 
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-    worldP = np.zeros((chessboardSize[0] *chessboardSize[1], 3), np.float32)
-    worldP[:,:2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1,2)
+    #square_size = 0.018  # meters (18 mm)
+    worldP = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
+    worldP[:, :2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
+    worldP *= square_size
+
 
     worldPoints = []
     imgPoints = []
@@ -48,10 +51,7 @@ def getCorners(chessboardSize: tuple[int,int] = (10,7), frameSize: tuple[int,int
 
     return(worldPoints,imgPoints)
 
-
-
-
-def getParams(worldPoints, imgPoints, frameSize, savePath="calibration.npz"):
+def getParams(worldPoints, imgPoints, frameSize):
     '''
     Get calibration parameters for a camera
 
@@ -61,16 +61,16 @@ def getParams(worldPoints, imgPoints, frameSize, savePath="calibration.npz"):
 
     #print ("repError: " , repError)
 
-    np.savez(
-        savePath,
-        repError=repError,
-        cameraMatrix=cameraMatrix,
-        dist=dist,
-        rvecs=rvecs,
-        tvecs=tvecs
-    )
+    # np.savez(
+    #     savePath,
+    #     repError=repError,
+    #     cameraMatrix=cameraMatrix,
+    #     dist=dist,
+    #     rvecs=rvecs,
+    #     tvecs=tvecs
+    # )
 
-    return cameraMatrix,dist, rvecs, tvecs
+    return cameraMatrix, dist, rvecs, tvecs
 
 def removeDistortion(cameraMatrix, dist, path: str = "images/", fileType: str = ".jpeg"):
 
@@ -79,7 +79,7 @@ def removeDistortion(cameraMatrix, dist, path: str = "images/", fileType: str = 
     '''
     img = cv.imread(glob.glob(path+"*"+fileType)[0])
     h,w = img.shape[:2]
-    newCamMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix,dist,(h,w),1,(h,w))
+    newCamMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix,dist,(w,h),1,(w,h))
 
     undistImg = cv.undistort(img, cameraMatrix, dist, None, newCamMatrix)
     x,y,h,w = roi
@@ -88,11 +88,16 @@ def removeDistortion(cameraMatrix, dist, path: str = "images/", fileType: str = 
 
     cv.imwrite("undistorted.jpeg", undistImg)
 
+    return (undistImg)
+
     # cv.imshow("img", img)
     # cv.imshow("undist ", undistImg)
     # cv.waitKey(10000)
 
-def checkError(worldPoints, imgPoints, rvecs, tvecs):
+def checkError(worldPoints, imgPoints, rvecs, tvecs, cameraMatrix, dist) -> float:
+    '''
+    Calculate reprojection error
+    '''
     meanError = 0
 
     for i in range(len(worldPoints)):
@@ -107,16 +112,45 @@ def checkError(worldPoints, imgPoints, rvecs, tvecs):
     return error
 
 
+if __name__ == "__main__":
+    # print("------Welcome------")
+    # print("Enter values as prompted (leave blank for default values): ")
+    # images_right = input("Path to images from right camera (From your point of view): ")
+    # images_left = input("Path to images from left camera (From your point of view): ")
+    # save_path = input("Save path or file name: ")
+    # T = float(input("Distance between cameras in Meters: "))
+    # square_size = float(input("Calibration squares size: "))
+    # chessboard_horizontal = int(input("Number of horizontal calibration squares: "))
+    # chessboard_vertical = int(input("Number of vertical calibration squares: "))
+    # showImages = input("Show calibration images (yes/no): ")
+    # R = np.eye(3)
 
+    images_right = "images/"
+    images_left = "ImagesLeft/"
+    showImages = False
+    save_path = "stereo_calibration.npz"
+    R = np.eye(3)
+    T = np.array([0.133,0,0])
 
+    worldPoints, imgPoints, = getCorners(showImages=showImages, path=images_right)
+    camera_matrix_right, dist_right, rvecs_right, tvecs_right = getParams(worldPoints, imgPoints, (1280,720))
+    #removeDistortion(cameraMatrix,dist)
+    right_error = checkError(worldPoints, imgPoints, rvecs_right, tvecs_right, camera_matrix_right, dist_right)
 
-worldPoints, imgPoints, = getCorners(showImages=False)
-cameraMatrix, dist, rvecs, tvecs = getParams(worldPoints, imgPoints, (1280,720))
-removeDistortion(cameraMatrix,dist)
-checkError(worldPoints, imgPoints, rvecs, tvecs)
+    worldPoints, imgPoints, = getCorners(showImages=showImages, path=images_left)
+    camera_matrix_left, dist_left, rvecs_left, tvecs_left = getParams(worldPoints, imgPoints, (1280,720))
+    #removeDistortion(cameraMatrix,dist,path="ImagesLeft/")
+    left_error = checkError(worldPoints, imgPoints, rvecs_left, tvecs_left, camera_matrix_left, dist_left)
 
-# print (cameraMatrix)
-# print (dist)
+    np.savez(
+        save_path,
+        camera_matrix_right = camera_matrix_right,
+        camera_matrix_left = camera_matrix_left,
+        dist_right = dist_right,
+        dist_left = dist_left,
+        R = R,
+        T = T
+    )
 
 
 
