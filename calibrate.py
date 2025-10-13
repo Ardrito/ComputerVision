@@ -82,17 +82,17 @@ def removeDistortion(cameraMatrix, dist, path: str = "images/", fileType: str = 
     newCamMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix,dist,(w,h),1,(w,h))
 
     undistImg = cv.undistort(img, cameraMatrix, dist, None, newCamMatrix)
-    x,y,h,w = roi
+    x,y,w,h = roi
 
     undistImg = undistImg[y:y+h, x:x+w]
 
     cv.imwrite("undistorted.jpeg", undistImg)
 
+    cv.imshow("img", img)
+    cv.imshow("undist ", undistImg)
+    cv.waitKey(10000)
     return (undistImg)
 
-    # cv.imshow("img", img)
-    # cv.imshow("undist ", undistImg)
-    # cv.waitKey(10000)
 
 def checkError(worldPoints, imgPoints, rvecs, tvecs, cameraMatrix, dist) -> float:
     '''
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     worldPoints, imgPoints, = getCorners(showImages=showImages, path=images_right)
     camera_matrix_right, dist_right, rvecs_right, tvecs_right = getParams(worldPoints, imgPoints, (1280,720))
-    #removeDistortion(cameraMatrix,dist)
+    #removeDistortion(camera_matrix_right, dist_right)
     right_error = checkError(worldPoints, imgPoints, rvecs_right, tvecs_right, camera_matrix_right, dist_right)
 
     worldPoints, imgPoints, = getCorners(showImages=showImages, path=images_left)
@@ -142,15 +142,15 @@ if __name__ == "__main__":
     #removeDistortion(cameraMatrix,dist,path="ImagesLeft/")
     left_error = checkError(worldPoints, imgPoints, rvecs_left, tvecs_left, camera_matrix_left, dist_left)
 
-    np.savez(
-        save_path,
-        camera_matrix_right = camera_matrix_right,
-        camera_matrix_left = camera_matrix_left,
-        dist_right = dist_right,
-        dist_left = dist_left,
-        R = R,
-        T = T
-    )
+    # np.savez(
+    #     save_path,
+    #     camera_matrix_right = camera_matrix_right,
+    #     camera_matrix_left = camera_matrix_left,
+    #     dist_right = dist_right,
+    #     dist_left = dist_left,
+    #     R = R,
+    #     T = T
+    # )
 
 
 

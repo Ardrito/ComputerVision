@@ -20,7 +20,7 @@ print("Distortion Coeffs:\n", dist)
 
 
 # --- STEP 2: Open webcam ---
-cap = cv2.VideoCapture(0)  # Change index if multiple cameras
+cap = cv2.VideoCapture(1)  # Change index if multiple cameras
 
 # Get first frame to set up undistortion map
 ret, frame = cap.read()

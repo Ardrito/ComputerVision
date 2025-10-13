@@ -61,8 +61,8 @@ map_rx, map_ry = cv2.initUndistortRectifyMap(mtx_r, dist_r, R2, P2, (640,480), 5
 # -----------------------------
 # Start cameras (adjust indices!)
 # -----------------------------
-camL = CameraThread(0)   # /dev/video0
-camR = CameraThread(2)   # /dev/video2
+camL = CameraThread(4)   # /dev/video0
+camR = CameraThread(1)   # /dev/video2
 camL.start()
 camR.start()
 

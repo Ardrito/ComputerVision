@@ -35,6 +35,7 @@ class CameraThread(threading.Thread):
 
 # --- Main stereo loop ---
 if __name__ == "__main__":
+    print ("IN")
     camL = CameraThread(0)  # left camera
     camR = CameraThread(2)  # right camera
     camL.start()
