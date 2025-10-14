@@ -142,15 +142,15 @@ if __name__ == "__main__":
     #removeDistortion(cameraMatrix,dist,path="ImagesLeft/")
     left_error = checkError(worldPoints, imgPoints, rvecs_left, tvecs_left, camera_matrix_left, dist_left)
 
-    # np.savez(
-    #     save_path,
-    #     camera_matrix_right = camera_matrix_right,
-    #     camera_matrix_left = camera_matrix_left,
-    #     dist_right = dist_right,
-    #     dist_left = dist_left,
-    #     R = R,
-    #     T = T
-    # )
+    np.savez(
+        save_path,
+        camera_matrix_right = camera_matrix_right,
+        camera_matrix_left = camera_matrix_left,
+        dist_right = dist_right,
+        dist_left = dist_left,
+        R = R,
+        T = T
+    )
 
 
 

@@ -34,12 +34,12 @@ ax.set_title('Live 3D Vector Visualization')
 quiver = ax.quiver(0, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True)
 plt.show(block=False)
 
-calib = np.load("stereo_calibration.npz")
-mtx_r, dist_r = calib["camera_matrix_right"], calib["dist_right"]
-mtx_l, dist_l = calib["camera_matrix_left"], calib["dist_left"]
+calib = np.load("camera_calibration_data.npz")
+mtx_r, dist_r = calib["camera_matrix_one"], calib["dist_one"]
+#mtx_l, dist_l = calib["camera_matrix_left"], calib["dist_left"]
 R, T = calib["R"], calib["T"]
 
-cap = cv2.VideoCapture(1)  
+cap = cv2.VideoCapture(0)  
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 ret, frame = cap.read()
@@ -89,6 +89,8 @@ while True:
                 cv2.circle(undistImg, (int(w/2),int(h/2)), 6, (255,0,255), 1)
                 cv2.circle(undistImg, (int(w_frame/2),int(h_frame/2)), 6, (255,0,0), 1)
                 cv2.circle(undistImg, (int(655),int(337)), 6, (0,255,0), 1)
+                cv2.circle(undistImg, (int(newMtx_r[0][2]),int(newMtx_r[1][2])), 6, (255,255,0), 1)
+
 
     # font
     font = cv2.FONT_HERSHEY_SIMPLEX

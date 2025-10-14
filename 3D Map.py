@@ -15,7 +15,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 # Camera Thread Class
 # -----------------------------
 class CameraThread(threading.Thread):
-    def __init__(self, cam_id, width=640, height=480, fps=30):
+    def __init__(self, cam_id, width=1280, height=720, fps=30):
         super().__init__(daemon=True)
         self.cap = cv2.VideoCapture(cam_id)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
@@ -144,7 +144,8 @@ if np.linalg.norm(T) > 1.0:
 viz = Live3D(T)
 
 # Stereo rectification
-img_size = (640, 480)
+#img_size = (640, 480)
+img_size = (1280,720)
 R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(mtx_l, dist_l, mtx_r, dist_r, img_size, R, T)
 map_lx, map_ly = cv2.initUndistortRectifyMap(mtx_l, dist_l, R1, P1, img_size, 5)
 map_rx, map_ry = cv2.initUndistortRectifyMap(mtx_r, dist_r, R2, P2, img_size, 5)
@@ -152,8 +153,8 @@ map_rx, map_ry = cv2.initUndistortRectifyMap(mtx_r, dist_r, R2, P2, img_size, 5)
 # -----------------------------
 # Start cameras (adjust indices!)
 # -----------------------------
-camL = CameraThread(4)
-camR = CameraThread(1)
+camL = CameraThread(2)
+camR = CameraThread(0)
 camL.start()
 camR.start()
 

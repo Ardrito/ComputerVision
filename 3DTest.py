@@ -8,11 +8,11 @@ from ultralytics import YOLO
 # Camera Thread Class
 # -----------------------------
 class CameraThread(threading.Thread):
-    def __init__(self, cam_id, width=640, height=480, fps=30):
+    def __init__(self, cam_id, width=1280, height=720, fps=30):
         super().__init__()
         self.cap = cv2.VideoCapture(cam_id)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
 
         self.frame = None
@@ -61,8 +61,8 @@ map_rx, map_ry = cv2.initUndistortRectifyMap(mtx_r, dist_r, R2, P2, (640,480), 5
 # -----------------------------
 # Start cameras (adjust indices!)
 # -----------------------------
-camL = CameraThread(4)   # /dev/video0
-camR = CameraThread(1)   # /dev/video2
+camL = CameraThread(0)   # /dev/video0
+camR = CameraThread(2)   # /dev/video2
 camL.start()
 camR.start()
 
@@ -74,6 +74,7 @@ model = YOLO("yolov8n.pt")
 # -----------------------------
 # Main loop
 # -----------------------------
+time_prev = time.time()
 try:
     while True:
         frameL, tsL = camL.get_frame()
@@ -111,7 +112,10 @@ try:
             point_3d = point_4d / point_4d[3]
 
             X, Y, Z = point_3d[:3].ravel()
-            print(f"Person 3D position: X={X:.2f}, Y={Y:.2f}, Z={Z:.2f}")
+            time_curr = time.time()
+            fps = 1/(time_curr-time_prev)
+            print(f"Person 3D position: X={X:.2f}, Y={Y:.2f}, Z={Z:.2f}, fps={fps:.2f}")
+            time_prev = time_curr
 
             # Draw on left image
             cv2.circle(rectL, (int(uL), int(vL)), 5, (0,0,255), -1)
