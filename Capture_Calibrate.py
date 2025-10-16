@@ -3,12 +3,13 @@ import numpy as np
 import time
 import tkinter as tk
 
-#v4l2-ctl --list-devices
+#   v4l2-ctl --list-devices
+#   Use above command on linux to find camera numbers
 
-def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,7), square_size:float = 0.018, snap_time:float = 2, num_images = 10):
+def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,7), square_size:float = 0.018, snap_time:float = 2, num_images = 10, resolution: tuple[int,int] = (1280,720)):
     cap = cv2.VideoCapture(camera_number)  
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  resolution[0])
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
 
     ret, frame = cap.read()
     if not ret:
@@ -36,11 +37,12 @@ def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,
     worldPoints = []
     imgPoints = []
     timer = 0
+    images_taken = 0
 
     while True:
         ret_frame, frame = cap.read()
         taken = False
-        if (not ret_frame) or (len(imgPoints) > num_images):
+        if (not ret_frame) or (len(imgPoints) > num_images-1):
             break
         
         img = frame
@@ -59,6 +61,7 @@ def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,
                 imgPoints.append(corners)
                 t_cap = time.time()
                 taken = True
+                images_taken += 1
 
 
         t_curr = time.time()
@@ -66,14 +69,13 @@ def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,
         t_prev = t_curr
         fps = 1.0/delta_t
         if not taken:
-            cv2.putText(img, f'Undistorted | Res: {w_frame}, {h_frame} | FPS: {fps:.2f} | Timer: {snap_time-timer:.2f}', org, font, 
+            cv2.putText(img, f'Undistorted | Res: {w_frame}, {h_frame} | FPS: {fps:.2f} | Images Taken {images_taken:02d} | Timer: {snap_time-timer:.2f}', org, font, 
                             fontScale, color, thickness, cv2.LINE_AA)
         if taken:
-            cv2.putText(img, f'Undistorted | Res: {w_frame}, {h_frame} | FPS: {fps:.2f} | Timer: {snap_time-timer:.2f} | Taken', org, font, 
+            cv2.putText(img, f'Undistorted | Res: {w_frame}, {h_frame} | FPS: {fps:.2f} | Images Taken {images_taken:02d} |  Timer: {snap_time-timer:.2f} | Taken', org, font, 
                             fontScale, color, thickness, cv2.LINE_AA)
 
         cv2.imshow("img", img)
-        #cv2.waitKey(500)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             
@@ -98,137 +100,52 @@ def getCalibration(camera_number: int = 0, chessboardSize: tuple[int,int] = (10,
 
     return (cameraMatrix, dist, newMtx, roi, mapx, mapy, repError)
 
-class GUI:
-    def __init__(self):
-        self.window = tk.Tk()
-
-        self.window.geometry("600x700")
-        self.window.title("Camera Calibration Matrix Tool")
-
-        self.header_font = ("Times New Roman", 18)
-        self.title_font = ("Times New Roman", 16)
-        self.body_font = ("Times New Roman", 12)
-
-        self.header = tk.Label(self.window, text="Camera Calibration Matrix Tool", font=self.header_font)
-        self.header.pack(pady=10)
-
-        self.description_text = tk.Label(self.window, text="Tool for finding calibration matrix of a camera. \nThis will be saved as a .npz file. \n\nRun 'v4l2-ctl --list-devices' to find device numbers", font=self.body_font)
-        self.description_text.pack(pady=10)
-
-        self.input_grid = tk.Frame(self.window)
-
-        self.camera_number_one = tk.IntVar(self.window,value=0)
-        self.camera_number_two = tk.IntVar(self.window,value=2)
-        self.chess_board_size_x = tk.IntVar(self.window, value=10)
-        self.chess_board_size_y = tk.IntVar(self.window, value=7)
-        self.square_size = tk.DoubleVar(self.window, value=0.018)
-        self.num_images = tk.IntVar(self.window, value=10)
-        self.snap_time = tk.DoubleVar(self.window, value=2)
-        self.cam_offset_x = tk.DoubleVar(self.window,value=0.133)
-        self.cam_offset_y = tk.DoubleVar(self.window,value=0)
-        self.cam_offset_z = tk.DoubleVar(self.window,value=0)
-
-        self.camera_number_label_one = tk.Label(self.input_grid, text="First Camera number:")
-        self.camera_number_label_two = tk.Label(self.input_grid, text="Second Camera number:\n(-1 if you only want one camera) ")
-        self.chessboard_size_label = tk.Label(self.input_grid, text="Chessboard size:\n(width x Height)")
-        self.square_size_label = tk.Label(self.input_grid, text="Square size in meters:")
-        self.num_images_label = tk.Label(self.input_grid, text="Number of images to use:")
-        self.snap_time_label = tk.Label(self.input_grid, text="Time between image captures:")
-        self.cam_offset_label = tk.Label(self.input_grid, text="Distance between camera centers\n(Meters)")
-        self.cam_offset_x_label = tk.Label(self.input_grid, text="x: ")
-        self.cam_offset_y_label = tk.Label(self.input_grid, text="y: ")
-        self.cam_offset_z_label = tk.Label(self.input_grid, text="z: ")
-
-        
-        self.camera_number_label_one.grid(row=0,column=0, padx=2,pady=10,sticky='w')
-        self.camera_number_one_entry = tk.Entry(self.input_grid, textvariable=self.camera_number_one, width=2)
-        self.camera_number_one_entry.grid(row=0,column=1, padx=5,pady=10,sticky='w')
-
-        self.camera_number_label_two.grid(row=0,column=2, padx=2,pady=10)
-        self.camera_number_two_entry = tk.Entry(self.input_grid, textvariable=self.camera_number_two, width=2)
-        self.camera_number_two_entry.grid(row=0,column=3, padx=5,pady=10)
-
-        self.chessboard_size_label.grid(row=1,column=0, padx=2,pady=10,sticky='w')
-        self.chess_board_size_x_entry = tk.Entry(self.input_grid, textvariable=self.chess_board_size_x, width=2)
-        self.chess_board_size_x_entry.grid(row=1,column=1,pady=10,sticky='w')
-        self.chess_board_size_y_entry = tk.Entry(self.input_grid, textvariable=self.chess_board_size_y, width=2)
-        self.chess_board_size_y_entry.grid(row=1,column=2,pady=10,sticky='w')
-
-        self.square_size_label.grid(row=2,column=0,pady=10,sticky='w')
-        self.square_size_entry = tk.Entry(self.input_grid, textvariable=self.square_size, width=7)
-        self.square_size_entry.grid(row=2,column=1,pady=10,sticky='w')
-
-        self.num_images_label.grid(row=3,column=0,pady=10,sticky='w')
-        self.num_images_entry = tk.Entry(self.input_grid, textvariable=self.num_images, width=2)
-        self.num_images_entry.grid(row=3,column=1,pady=10,sticky='w')
-
-        self.cam_offset_label.grid(row=4,column=0,pady=10,sticky='w')
-        self.cam_offset_x_label.grid(row=5,column=0,pady=10,sticky='e')
-        self.cam_offset_x_entry = tk.Entry(self.input_grid, textvariable=self.cam_offset_x, width=5)
-        self.cam_offset_x_entry.grid(row=5,column=1,pady=10,sticky='w')
-        self.cam_offset_y_label.grid(row=6,column=0,pady=10,sticky='e')
-        self.cam_offset_y_entry = tk.Entry(self.input_grid, textvariable=self.cam_offset_y, width=5)
-        self.cam_offset_y_entry.grid(row=6,column=1,pady=10,sticky='w')
-        self.cam_offset_z_label.grid(row=7,column=0,pady=10,sticky='e')
-        self.cam_offset_z_entry = tk.Entry(self.input_grid, textvariable=self.cam_offset_z, width=5)
-        self.cam_offset_z_entry.grid(row=7,column=1,pady=10,sticky='w')
-
-        self.snap_time_label.grid(row=8,column=0,pady=10,sticky='w')
-        self.snap_time_entry = tk.Entry(self.input_grid, textvariable=self.snap_time, width=3)
-        self.snap_time_entry.grid(row=8,column=1,pady=10,sticky='w')
-                
-        self.input_grid.pack()
+if __name__ == "__main__":
+    camera_number_one = 0
+    camera_number_two = 2 # Set to -1 to skip
+    chessboard_size = (10,7)
+    snap_time = 3
+    num_images = 10
+    square_size = 0.018
+    R = np.eye(3)
+    T = np.array([0.133,0,0])
+    resolution = (640,480)
 
 
-        self.start_button = tk.Button(self.window, text="Start", font=self.body_font, command=self.start)
-        self.start_button.pack(pady=10)
-
-        self.window.mainloop()
-
-    def start(self):
-        print ("Start:", self.camera_number_one.get())
-        camera_matrix_one, dist_one, newMtx_one, roi_one, mapx_one, mapy_one, error_one = getCalibration(
-            camera_number=self.camera_number_one.get(),chessboardSize=(self.chess_board_size_x.get(),self.chess_board_size_y.get()),
-            square_size=self.square_size.get(),snap_time=self.snap_time.get(), num_images=self.num_images.get())
-        print ("Camera One Error", error_one)
-        print ("Camera One Matrix:", camera_matrix_one)
-        
-        if self.camera_number_two.get() > -1:
-            camera_matrix_two, dist_two, newMtx_two, roi_two, mapx_two, mapy_two, error_two = getCalibration(
-            camera_number=self.camera_number_two.get(),chessboardSize=(self.chess_board_size_x.get(),self.chess_board_size_y.get()),
-            square_size=self.square_size.get(),snap_time=self.snap_time.get(), num_images=self.num_images.get())
-        else:
-            camera_matrix_two, dist_two, newMtx_two, roi_two, mapx_two, mapy_two, error_two = None , None, None, None, None, None, None
+    print ("Start:", camera_number_one)
+    camera_matrix_one, dist_one, newMtx_one, roi_one, mapx_one, mapy_one, error_one = getCalibration(
+        camera_number=camera_number_one,chessboardSize=(chessboard_size),
+        square_size=square_size,snap_time=snap_time, num_images=num_images, resolution=resolution)
+    print ("Camera One Error", error_one)
+    print ("Camera One Matrix:", camera_matrix_one)
+    
+    if camera_number_two > -1:
+        camera_matrix_two, dist_two, newMtx_two, roi_two, mapx_two, mapy_two, error_two = getCalibration(
+        camera_number=camera_number_two,chessboardSize=(chessboard_size),
+        square_size=square_size,snap_time=snap_time, num_images=num_images, resolution=resolution)
+    else:
+        camera_matrix_two, dist_two, newMtx_two, roi_two, mapx_two, mapy_two, error_two = None , None, None, None, None, None, None
 
 
-        print ("Camera Two Error", error_two)
-        print ("Camera Two Matrix:", camera_matrix_two)
+    print ("Camera Two Error", error_two)
+    print ("Camera Two Matrix:", camera_matrix_two)
 
-        R = np.eye(3)
-        T = np.array([self.cam_offset_x.get(),self.cam_offset_y.get(),self.cam_offset_z.get()])
-
-        print (T)
-
-        np.savez(
-            "camera_calibration_data.npz",
-            camera_matrix_one = camera_matrix_one,
-            dist_one = dist_one,
-            newMtx_one = newMtx_one,
-            roi_one = roi_one,
-            mapx_one = mapx_one,
-            mapy_one = mapy_one,
-            error_one = error_one,
-            camera_matrix_two = camera_matrix_two,
-            dist_two = dist_two,
-            newMtx_two = newMtx_two,
-            roi_two = roi_two,
-            mapx_two = mapx_two,
-            mapy_two = mapy_two,
-            error_two = error_two,
-            R=R,
-            T=T
-        )
-
-        self.window.destroy()
-
-GUI()
+    np.savez(
+        "camera_calibration_data.npz",
+        camera_matrix_one = camera_matrix_one,
+        dist_one = dist_one,
+        newMtx_one = newMtx_one,
+        roi_one = roi_one,
+        mapx_one = mapx_one,
+        mapy_one = mapy_one,
+        error_one = error_one,
+        camera_matrix_two = camera_matrix_two,
+        dist_two = dist_two,
+        newMtx_two = newMtx_two,
+        roi_two = roi_two,
+        mapx_two = mapx_two,
+        mapy_two = mapy_two,
+        error_two = error_two,
+        R=R,
+        T=T
+    )

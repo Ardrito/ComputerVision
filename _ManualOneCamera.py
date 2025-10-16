@@ -31,7 +31,7 @@ ax.set_zlim(0, 1)
 ax.set_title('Live 3D Vector Visualization')
 
 # Initialize the quiver (arrow)
-quiver = ax.quiver(0, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True)
+quiver = ax.quiver(0, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True,arrow_length_ratio=0)
 plt.show(block=False)
 
 calib = np.load("stereo_calibration.npz")
