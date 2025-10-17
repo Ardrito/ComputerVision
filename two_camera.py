@@ -4,7 +4,7 @@ import time
 import numpy as np
 from ultralytics import YOLO
 import matplotlib.pyplot as plt
-model = YOLO("yolov8n.pt")
+model = YOLO("yolov8n.pt").to("cuda")
 
 class CameraThread(threading.Thread):
     def __init__(self, cam_id, resolution: tuple[int,int] = (1280,720), fps:int = 30):
@@ -37,29 +37,40 @@ class CameraThread(threading.Thread):
         self.cap.release()
 
 
-plt.ion()  # Turn on interactive mode
+font = cv2.FONT_HERSHEY_SIMPLEX
+org = (10, 100)
+fontScale = 2
+color = (255, 0, 0)
+thickness = 2
+show_rays = False
 
-fig = plt.figure(figsize=(6, 6))
-ax = fig.add_subplot(111, projection='3d')
+if show_rays:
+    plt.ion()  # Turn on interactive mode
 
-ax.set_xlabel('X (right)')
-ax.set_ylabel('Y (down)')
-ax.set_zlabel('Z (forward)')
-ax.set_xlim(-1, 1)
-ax.set_ylim(-1, 1)
-ax.set_zlim(0, 1)
-ax.set_title('Live 3D Vector Visualization')
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(111, projection='3d')
 
-# Initialize the quiver (arrow)
-quiver_l = ax.quiver(-0.0665, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True,arrow_length_ratio=0)
-quiver_r = ax.quiver(0.0665, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True,arrow_length_ratio=0)
-plt.show(block=False)
+    ax.set_xlabel('X (right)')
+    ax.set_ylabel('Y (down)')
+    ax.set_zlabel('Z (forward)')
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(0, 1)
+    ax.set_title('Live 3D Vector Visualization')
+
+    # Initialize the quiver (arrow)
+    quiver_l = ax.quiver(-0.0665, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True,arrow_length_ratio=0)
+    quiver_r = ax.quiver(0.0665, 0, 0, 0, 0, 1, color='r', length=1.0, normalize=True,arrow_length_ratio=0)
+    plt.show(block=False)
 
 calib = np.load("camera_calibration_data.npz")
 mapx_l, mapy_l, roi_l, newMtx_l = calib["mapx_one"], calib["mapy_one"], calib["roi_one"], calib["newMtx_one"]
 mapx_r, mapy_r, roi_r, newMtx_r = calib["mapx_two"], calib["mapy_two"], calib["roi_two"], calib["newMtx_two"]
 x_l, y_l, w_l, h_l = roi_l
 x_r, y_r, w_r, h_r = roi_r
+
+# newMtx_l = calib["camera_matrix_one"]
+# newMtx_l = calib["camera_matrix_two"]
 
 cp_l = (int(newMtx_l[0][2]),int(newMtx_l[1][2]))
 cp_r = (int(newMtx_r[0][2]), int(newMtx_r[1][2]))
@@ -75,7 +86,6 @@ camR = CameraThread(2)  # right camera
 camL.start()
 camR.start()
 
-quivers = {}
 
 # def update_ray(id, ray_l, ray_r):
 #     if id in quivers:
@@ -90,20 +100,30 @@ quivers = {}
 
 
 prev_time = time.time()
+
+mtx_l, dist_l, mtx_r, dist_r, R, T = calib["camera_matrix_one"], calib["dist_one"], calib["camera_matrix_two"], calib["dist_two"], calib["R"], calib["T"]
+
+
+R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
+    mtx_l, dist_l, mtx_r, dist_r, (1280, 720), R, T
+)
+
+
+eps = 1e-9
 try:
     while True:
         frameL, tsL = camL.get_frame()
         frameR, tsR = camR.get_frame()
 
         if frameL is not None and frameR is not None:
-            # undist_frameL = cv2.remap(frameL, mapx_l, mapy_l, cv2.INTER_LINEAR)
-            # undist_frameL = undist_frameL[cp_l[1]-h_viz: cp_l[1] + h_viz, cp_l[0]-w_viz:cp_l[0] + w_viz]
+            undist_frameL = cv2.remap(frameL, mapx_l, mapy_l, cv2.INTER_LINEAR)
+            #undist_frameL = undist_frameL[cp_l[1]-h_viz: cp_l[1] + h_viz, cp_l[0]-w_viz:cp_l[0] + w_viz]
 
-            # undist_frameR = cv2.remap(frameR, mapx_r, mapy_r, cv2.INTER_LINEAR)
-            # undist_frameR = undist_frameR[cp_r[1]-h_viz: cp_r[1] + h_viz, cp_r[0]-w_viz:cp_r[0] + w_viz]
+            undist_frameR = cv2.remap(frameR, mapx_r, mapy_r, cv2.INTER_LINEAR)
+            #undist_frameR = undist_frameR[cp_r[1]-h_viz: cp_r[1] + h_viz, cp_r[0]-w_viz:cp_r[0] + w_viz]
 
-            undist_frameL = frameL
-            undist_frameR = frameR
+            # undist_frameL = frameL
+            # undist_frameR = frameR
 
             # Run YOLO on both
             resultsL = model.predict(undist_frameL, conf=0.5, device="cuda:0", verbose=False)
@@ -115,6 +135,8 @@ try:
 
             box_id = 0
 
+            rays_l = []
+            rays_r = []
             for boxL, boxR in zip(boxesL, boxesR):
             # Get centers
                 uL, vL, _, h_boxL = boxL.xywh[0].cpu().numpy()
@@ -122,27 +144,63 @@ try:
                 vL = vL - (h_boxL/5)
                 vR = vR - (h_boxR/5)
 
-                # pixel_h_l = np.array([uL, vL, 1.0])
-                # ray_l = np.linalg.inv(newMtx_l) @ pixel_h_l
-                # ray_l /= np.linalg.norm(ray_l)
+                pixel_h_l = np.array([uL, vL, 1.0])
+                ray_l = np.linalg.inv(newMtx_l) @ pixel_h_l
+                ray_l /= np.linalg.norm(ray_l)
+                rays_l.append(ray_l)
 
-                # pixel_h_r = np.array([uR, vR, 1.0])
-                # ray_r = np.linalg.inv(newMtx_r) @ pixel_h_r
-                # ray_r /= np.linalg.norm(ray_r)
+                pixel_h_r = np.array([uR, vR, 1.0])
+                ray_r = np.linalg.inv(newMtx_r) @ pixel_h_r
+                ray_r /= np.linalg.norm(ray_r)
+                rays_r.append(ray_r)
 
                 # print (ray_l)
                 # print (ray_r)
-                print (box_id)
+                #print (box_id)
+                if show_rays:
+                    quiver_l.remove()  # remove the old arrow
+                    quiver_l = ax.quiver(-0.0665, 0, 0, ray_l[0], ray_l[1], ray_l[2],
+                                    length=10.0, normalize=True, color='r')
+                    
+                    quiver_r.remove()  # remove the old arrow
+                    quiver_r = ax.quiver(0.0665, 0, 0, ray_r[0], ray_r[1], ray_r[2],
+                                    length=10.0, normalize=True, color='b')
+                    
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+                # C1 = np.array([-0.0665,0,0])
+                # C2 = np.array([0.0665,0,0])
+                # w0 = C1 - C2
+                # a = np.dot(ray_l, ray_l)
+                # b = np.dot(ray_l, ray_r)
+                # c = np.dot(ray_r, ray_r)
+                # d = np.dot(ray_l, w0)
+                # e = np.dot(ray_r, w0)
+                
+                # denom = a * c - b * b
+                # if abs(denom) < eps:
+                #     # Lines nearly parallel
+                #     s = 0.0
+                #     t = e / c
+                # else:
+                #     s = (b * e - c * d) / denom
+                #     t = (a * e - b * d) / denom
 
-                # quiver_l.remove()  # remove the old arrow
-                # quiver_l = ax.quiver(-0.0665, 0, 0, ray_l[0], ray_l[1], ray_l[2],
-                #                 length=1.0, normalize=True, color='r')
-                
-                # quiver_r.remove()  # remove the old arrow
-                # quiver_r = ax.quiver(0.0665, 0, 0, ray_r[0], ray_r[1], ray_r[2],
-                #                 length=1.0, normalize=True, color='b')
-                #update_ray(box_id,ray_l,ray_r)
-                
+                # P1 = C1 + s * ray_l
+                # P2 = C2 + t * ray_r
+                # #print (P1,P2)
+                # P_mid = 0.5 * (P1 + P2)
+                # #distance = np.linalg.norm(P1 - P2)
+                # print (P_mid)
+
+                ptsL = np.array([[uL], [vL]])
+                ptsR = np.array([[uR], [vR]])
+                point_4d = cv2.triangulatePoints(P1, P2, ptsL, ptsR)
+                point_3d = point_4d / point_4d[3]
+
+                X, Y, Z = point_3d[:3].ravel()
+
+                print (X,Y,-Z)
                 
 
                 cv2.circle(undist_frameL, (int(uL), int(vL)), 5, (0,0,255), -1)
@@ -150,11 +208,11 @@ try:
 
                 cv2.circle(undist_frameL, (int(newMtx_l[0][2]),int(newMtx_l[1][2])), 6, (255,255,0), 1)
                 cv2.circle(undist_frameR, (int(newMtx_r[0][2]),int(newMtx_r[1][2])), 6, (255,255,0), 1)
+                
 
-                box_id += 1
+                #box_id += 1
 
-            fig.canvas.draw()
-            fig.canvas.flush_events()
+            
 
             # Timestamp difference (ms)
             delta = abs(tsL - tsR) * 1000
@@ -167,6 +225,8 @@ try:
             # cv2.imshow("L", undist_frameL)
             # cv2.imshow("R", undist_frameR)
             stereo = cv2.hconcat([undist_frameL, undist_frameR])
+            cv2.putText(stereo, f'Undistorted | Distance: {-Z}', org, font, 
+                    fontScale, color, thickness, cv2.LINE_AA)
             cv2.imshow("Stereo Pair", stereo)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
